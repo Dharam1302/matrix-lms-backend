@@ -1,8 +1,16 @@
 require("dotenv").config();
 const app = require("./src/app");
 const connectDB = require("./src/config/db");
+const bookRoutes = require("./src/routes/bookRoutes");
+const rackRoutes = require("./src/routes/racks");
+const rackAssignmentRoutes = require("./src/routes/rackAssignments");
 
 const PORT = process.env.PORT || 5000;
+
+// Mount routes
+app.use("/api/books", bookRoutes);
+app.use("/api/racks", rackRoutes);
+app.use("/api/rack-assignments", rackAssignmentRoutes);
 
 const startServer = async () => {
   try {

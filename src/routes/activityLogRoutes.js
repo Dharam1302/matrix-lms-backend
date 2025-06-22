@@ -6,6 +6,7 @@ const {
   transfer,
   getTodayLogs,
   getSeatAvailability,
+  getStudentAnalytics,
 } = require("../controllers/activityLogController");
 const authMiddleware = require("../middleware/auth");
 const restrictTo = require("../middleware/restrictTo");
@@ -18,5 +19,8 @@ router.get("/today", authMiddleware, restrictTo(["admin"]), getTodayLogs);
 
 // Public route for seat availability
 router.get("/seats", getSeatAvailability);
+
+// Student routes
+router.get("/analytics", authMiddleware, restrictTo(["student"]), getStudentAnalytics);
 
 module.exports = router;

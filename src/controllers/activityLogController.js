@@ -1,6 +1,7 @@
 const Student = require("../models/Student");
 const ActivityLog = require("../models/ActivityLog");
 const asyncHandler = require("express-async-handler");
+const User = require("../models/User");
 
 const sectionSeatLimits = {
   central: 450,
@@ -362,10 +363,102 @@ const getSeatAvailability = asyncHandler(async (req, res) => {
   res.json(availability);
 });
 
+// Get student analytics
+const getStudentAnalytics = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const user = await User.findById(userId);
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  const rollNumber = user.rollNumber;
+  const today = new Date().toISOString().split("T")[0];
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
+
+  // Get all logs for the last 30 days
+  const logs = await ActivityLog.find({
+    rollNumber: rollNumber,
+    date: { $gte: thirtyDaysAgoStr, $lte: today },
+    status: "Checked Out" // Only consider completed sessions
+  }).sort({ date: 1 });
+
+  // Calculate analytics
+  const analytics = {
+    totalVisits: logs.length,
+    totalTimeSpent: 0, // in minutes
+    sectionBreakdown: {},
+    dailyTimeSpent: {},
+    averageTimePerVisit: 0,
+    mostVisitedSection: '',
+    peakVisitTime: '',
+    visitTrend: []
+  };
+
+  // Process logs
+  logs.forEach(log => {
+    // Calculate time spent in minutes for this session
+    const timeIn = new Date(`${log.date} ${log.timeIn}`);
+    const timeOut = new Date(`${log.date} ${log.timeOut}`);
+    const timeSpentMinutes = Math.round((timeOut - timeIn) / (1000 * 60));
+    
+    // Update total time spent
+    analytics.totalTimeSpent += timeSpentMinutes;
+    
+    // Update section breakdown
+    if (!analytics.sectionBreakdown[log.section]) {
+      analytics.sectionBreakdown[log.section] = {
+        visits: 0,
+        timeSpent: 0
+      };
+    }
+    analytics.sectionBreakdown[log.section].visits++;
+    analytics.sectionBreakdown[log.section].timeSpent += timeSpentMinutes;
+    
+    // Update daily time spent
+    if (!analytics.dailyTimeSpent[log.date]) {
+      analytics.dailyTimeSpent[log.date] = 0;
+    }
+    analytics.dailyTimeSpent[log.date] += timeSpentMinutes;
+    
+    // Track visit hour for peak time analysis
+    const hour = timeIn.getHours();
+    if (!analytics.visitTrend[hour]) {
+      analytics.visitTrend[hour] = 0;
+    }
+    analytics.visitTrend[hour]++;
+  });
+
+  // Calculate averages and find peak values
+  if (analytics.totalVisits > 0) {
+    analytics.averageTimePerVisit = Math.round(analytics.totalTimeSpent / analytics.totalVisits);
+    
+    // Find most visited section
+    analytics.mostVisitedSection = Object.entries(analytics.sectionBreakdown)
+      .sort((a, b) => b[1].visits - a[1].visits)[0]?.[0] || '';
+    
+    // Find peak visit time
+    const peakHour = analytics.visitTrend
+      .map((count, hour) => ({ hour, count: count || 0 }))
+      .sort((a, b) => b.count - a.count)[0];
+    if (peakHour) {
+      analytics.peakVisitTime = `${peakHour.hour}:00 - ${peakHour.hour + 1}:00`;
+    }
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: { analytics }
+  });
+});
+
 module.exports = {
   checkIn,
   checkOut,
   transfer,
   getTodayLogs,
   getSeatAvailability,
+  getStudentAnalytics,
 };

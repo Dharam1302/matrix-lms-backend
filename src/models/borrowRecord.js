@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const borrowRecordSchema = new mongoose.Schema({
   student: {
     type: mongoose.Schema.ObjectId,
-    ref: 'Student',
+    ref: 'User',
     required: [true, 'A borrow record must have a student'],
   },
   book: {
@@ -64,11 +64,11 @@ const borrowRecordSchema = new mongoose.Schema({
   toObject: { virtuals: true },
 });
 
-// Populate student field (book is populated manually in controller due to string ID)
+// Populate student field with user details (book is populated manually in controller due to string ID)
 borrowRecordSchema.pre(/^find/, function(next) {
   this.populate({
     path: 'student',
-    select: 'name rollNumber branch year',
+    select: 'name email rollNumber department',
   });
   next();
 });

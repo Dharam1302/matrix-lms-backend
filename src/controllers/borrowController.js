@@ -1,6 +1,6 @@
 const BorrowRecord = require('../models/borrowRecord');
 const Book = require('../models/Book');
-const Student = require('../models/Student');
+const User = require('../models/User');
 const AppError = require('../utils/appError');
 const asyncHandler = require('../middleware/asyncHandler');
 const mongoose = require('mongoose');
@@ -34,6 +34,43 @@ exports.getAllBorrowRecords = asyncHandler(async (req, res, next) => {
   });
 });
 
+// Get student's borrow history
+exports.getStudentBorrowHistory = asyncHandler(async (req, res, next) => {
+  const records = await BorrowRecord.find({ student: req.user._id });
+  // Manually populate book field
+  const populatedRecords = await Promise.all(records.map(async (record) => {
+    const book = await Book.findOne({ id: record.book }).select('title isbn categories available status rack type timesLoaned');
+    return { ...record.toObject(), book };
+  }));
+  res.status(200).json({
+    status: 'success',
+    results: records.length,
+    data: { records: populatedRecords },
+  });
+});
+
+// Get specific student's borrow history (Admin)
+exports.getStudentBorrowHistoryByAdmin = asyncHandler(async (req, res, next) => {
+  const { studentId } = req.params;
+  
+  const student = await User.findById(studentId);
+  if (!student) return next(new AppError('Student not found', 404));
+  if (student.role !== 'student') return next(new AppError('Selected user is not a student', 400));
+
+  const records = await BorrowRecord.find({ student: studentId });
+  // Manually populate book field
+  const populatedRecords = await Promise.all(records.map(async (record) => {
+    const book = await Book.findOne({ id: record.book }).select('title isbn categories available status rack type timesLoaned');
+    return { ...record.toObject(), book };
+  }));
+
+  res.status(200).json({
+    status: 'success',
+    results: records.length,
+    data: { records: populatedRecords },
+  });
+});
+
 // Borrow a book (Admin)
 exports.borrowBook = asyncHandler(async (req, res, next) => {
   const { studentId, bookId, dueDate, conditionAtIssue, notes } = req.body;
@@ -41,14 +78,14 @@ exports.borrowBook = asyncHandler(async (req, res, next) => {
   session.startTransaction();
 
   try {
-    const student = await Student.findById(studentId).session(session);
+    const student = await User.findById(studentId).session(session);
     if (!student) return next(new AppError('Student not found', 404));
+    if (student.role !== 'student') return next(new AppError('Selected user is not a student', 400));
 
     const book = await Book.findOne({ id: bookId }).session(session);
     if (!book) return next(new AppError('Book not found', 404));
     if (book.available <= 0) return next(new AppError('No copies available', 400));
     if (book.status !== 'Available') return next(new AppError(`Book is ${book.status.toLowerCase()} and cannot be borrowed`, 400));
-    // Book existence is already checked above
 
     const currentBooks = await BorrowRecord.countDocuments({
       student: studentId,
@@ -284,21 +321,5 @@ exports.waiveFine = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     status: 'success',
     data: { record: finalRecord },
-  });
-});
-
-// Get student borrow history (Student)
-exports.getStudentBorrowHistory = asyncHandler(async (req, res, next) => {
-  const studentId = req.user.studentId; // Assumes JWT includes studentId
-  let records = await BorrowRecord.find({ student: studentId });
-  // Manually populate book field
-  records = await Promise.all(records.map(async (record) => {
-    const book = await Book.findOne({ id: record.book }).select('title isbn categories available status rack type');
-    return { ...record.toObject(), book };
-  }));
-  res.status(200).json({
-    status: 'success',
-    results: records.length,
-    data: { records },
   });
 });

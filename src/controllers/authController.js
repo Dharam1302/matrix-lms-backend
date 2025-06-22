@@ -9,7 +9,7 @@ const login = async (req, res, next) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { id: user._id, role: user.role, name: user.name }, // Add name to JWT
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );

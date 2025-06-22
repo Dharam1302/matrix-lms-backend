@@ -1,5 +1,8 @@
 const mongoose = require("mongoose");
 
+// Set strictQuery to false to prepare for Mongoose 7
+mongoose.set('strictQuery', false);
+
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI, {

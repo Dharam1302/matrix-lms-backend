@@ -156,7 +156,14 @@ const checkOut = asyncHandler(async (req, res) => {
   const activeLog = await ActivityLog.findOne({
     rollNumber: { $regex: `^${rollNumber}$`, $options: "i" },
     date: today,
-    section: sectionLabel,
+    $or: [
+      { section: sectionLabel },
+      // If checking out from reference, match both Reference and Reference - Study Section
+      ...(section === "reference" ? [
+        { section: "Reference" },
+        { section: "Reference - Study Section" }
+      ] : [])
+    ],
     timeOut: null,
     status: "Checked In",
   });

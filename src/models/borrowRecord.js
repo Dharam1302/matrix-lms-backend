@@ -11,9 +11,9 @@ const borrowRecordSchema = new mongoose.Schema({
     required: [true, 'A borrow record must have a book'],
   },
   borrowDate: {
-    type: Date,
+    type: String, // Store as YYYY-MM-DD for easier comparison
     required: [true, 'A borrow record must have a borrow date'],
-    default: Date.now,
+    default: () => new Date().toISOString().split('T')[0]
   },
   dueDate: {
     type: Date,

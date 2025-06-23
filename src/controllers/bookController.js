@@ -1,4 +1,5 @@
 const Book = require("../models/Book");
+const RackAssignment = require("../models/RackAssignment");
 const axios = require("axios");
 
 // Get books by query (supports isbn or isnn)
@@ -301,6 +302,62 @@ const exportBooks = async (req, res) => {
   }
 };
 
+// Search books with location information
+const searchBooksWithLocation = async (req, res) => {
+  try {
+    const { query } = req.query;
+    
+    // Create search criteria
+    const searchCriteria = {
+      $or: [
+        { title: { $regex: query, $options: 'i' } },
+        { author: { $regex: query, $options: 'i' } },
+        { isbn: { $regex: query, $options: 'i' } },
+        { categories: { $in: [new RegExp(query, 'i')] } }
+      ]
+    };
+
+    // First find matching books
+    const books = await Book.find(searchCriteria)
+      .select('id title author isbn status coverImage categories')
+      .limit(6);
+
+    // Get rack assignments for these books
+    const bookIds = books.map(book => book.id);
+    const rackAssignments = await RackAssignment.find({ bookId: { $in: bookIds } });
+
+    // Create a map of book IDs to their rack assignments
+    const rackMap = rackAssignments.reduce((map, assignment) => {
+      map[assignment.bookId] = assignment;
+      return map;
+    }, {});
+
+    // Format response
+    const formattedBooks = books.map(book => ({
+      id: book.id,
+      title: book.title,
+      authors: [book.author], // Convert to array to match frontend format
+      thumbnail: book.coverImage,
+      status: book.status,
+      categories: book.categories,
+      location: rackMap[book.id] ? {
+        library: rackMap[book.id].library,
+        department: rackMap[book.id].department,
+        rack: rackMap[book.id].rack
+      } : {
+        library: 'Unassigned',
+        department: 'N/A',
+        rack: 'N/A'
+      }
+    }));
+
+    res.status(200).json(formattedBooks);
+  } catch (error) {
+    console.error('Error in searchBooksWithLocation:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getBooksByQuery,
   fetchBookById,
@@ -311,4 +368,5 @@ module.exports = {
   deleteBook,
   bulkUpdateStatus,
   exportBooks,
+  searchBooksWithLocation
 };

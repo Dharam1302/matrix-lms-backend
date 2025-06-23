@@ -7,6 +7,7 @@ router.get("/", bookController.getBooksByQuery); // Updated to handle query para
 router.get("/id/:id", bookController.fetchBookById); // New route for Book.id lookup
 router.get("/isbn/:isbn", bookController.fetchBookByISBN);
 router.get("/isnn/:isnn", bookController.fetchJournalByISNN);
+router.get("/search/location", bookController.searchBooksWithLocation); // New route for location search
 
 // Protected routes (assuming middleware for auth)
 router.post("/", bookController.addBook);

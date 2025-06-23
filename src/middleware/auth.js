@@ -5,10 +5,10 @@ const AppError = require("../utils/appError");
 const authMiddleware = async (req, res, next) => {
   try {
     // 1) Get token and check if it exists
-    const token = req.header("Authorization")?.replace("Bearer ", "");
-    if (!token) {
+  const token = req.header("Authorization")?.replace("Bearer ", "");
+  if (!token) {
       return next(new AppError("You are not logged in. Please log in to get access.", 401));
-    }
+  }
 
     // 2) Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);

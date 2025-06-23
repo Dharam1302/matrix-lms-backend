@@ -1,2 +1,5 @@
 node_modules/
 .env
+*-dfc7b82802df.json
+credentials/
+uploads/
